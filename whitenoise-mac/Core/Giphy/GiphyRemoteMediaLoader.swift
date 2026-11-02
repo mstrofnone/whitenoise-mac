@@ -63,12 +63,24 @@ nonisolated enum GiphyRemoteMediaLoader {
     /// ImageIO inspection, and neither downloaded metadata nor retries bypass it.
     static func animatedImageAspectRatio(from data: Data) throws -> CGFloat {
         let options = [kCGImageSourceShouldCache: false] as CFDictionary
-        guard let metadata = GIFPlaybackAdmission.inspect(data),
-            let source = CGImageSourceCreateWithData(data as CFData, options),
+        let metadata: GIFPlaybackAdmission.Metadata
+        switch GIFPlaybackAdmission.evaluate(data) {
+        case .success(let admitted):
+            metadata = admitted
+        case .failure(let rejection):
+            log.error(
+                "gif_admission_refused reason=\(rejection.rawValue, privacy: .public) bytes=\(data.count, privacy: .public)"
+            )
+            throw Failure.invalidResponse
+        }
+        guard let source = CGImageSourceCreateWithData(data as CFData, options),
             CGImageSourceGetCount(source) == metadata.frameCount,
             CGImageSourceGetStatus(source) == .statusComplete,
             let type = CGImageSourceGetType(source),
-            UTType(type as String)?.conforms(to: .gif) == true
+            UTType(type as String)?.conforms(to: .gif) == true,
+            // Header checks cannot predict ImageIO's own decode limits, and an undecodable
+            // frame crashes the animator; the area cap bounds this raster to 16 MiB.
+            CGImageSourceCreateImageAtIndex(source, 0, options) != nil
         else {
             log.error("image_decode_failed bytes=\(data.count, privacy: .public)")
             throw Failure.invalidResponse

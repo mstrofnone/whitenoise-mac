@@ -593,7 +593,7 @@ struct GiphyTests: WorkspaceTestSupport {
 
     // MARK: Playback
 
-    @Test func animatedGIFReadsDimensionsFromItsFirstFrame() throws {
+    @Test func animatedGIFReadsDimensionsFromItsLogicalCanvas() throws {
         let aspectRatio = try GiphyRemoteMediaLoader.animatedImageAspectRatio(
             from: try Self.animatedGIF(width: 2, height: 1))
         #expect(aspectRatio == 2)
